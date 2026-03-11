@@ -58,7 +58,7 @@
   .aspek-m{background:#FCE7F3;color:#9D174D;} .aspek-i{background:#D1FAE5;color:#065F46;}
   .gap-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:11px;font-size:12px;font-weight:600;padding:0 6px;}
   .gap-high{background:var(--lred);color:var(--red);} .gap-medium{background:var(--lamber);color:var(--amber);} .gap-none{background:var(--lgray);color:var(--mgray);}
-  .action-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid var(--border);background:white;cursor:pointer;color:var(--gray);font-family:var(--font);transition:all .15s;}
+  .action-btn{display:inline-block;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid var(--border);background:white;cursor:pointer;color:var(--gray);font-family:var(--font);transition:all .15s;text-decoration:none;line-height:1.4;}
   .action-btn:hover{background:var(--navy);color:white;border-color:var(--navy);}
   .action-btn.primary{background:var(--blue);color:white;border-color:var(--blue);}
   .action-btn.primary:hover{background:var(--navy);border-color:var(--navy);}
@@ -251,7 +251,7 @@ function renderTable(data) {
       '<td><div class="aspek-list">'+(aspekHtml||'<span style="font-size:11px;color:var(--mgray)">—</span>')+'</div></td>' +
       '<td style="white-space:nowrap">'+gapHtml+'</td>' +
       '<td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:'+(d.progress||0)+'%;background:'+barColor+'"></div></div><span style="font-size:11px;font-family:var(--mono);color:var(--mgray)">'+(d.progress||0)+'%</span></div></td>' +
-      '<td><button class="action-btn'+(isPrimary?' primary':'')+'" data-code="'+d.code+'" data-name="'+encodeURIComponent(d.name||'')+'" onclick="handleDocBtn(this)">'+(isPrimary?'Tugaskan':'Update')+'</button></td>' +
+      '<td><a class="action-btn'+(isPrimary?' primary':'')+'" href="'+buildFormUrl(d.code, d.name||'')+'" target="_blank" rel="noopener">'+(isPrimary?'Tugaskan':'Update')+'</a></td>' +
       '</tr>';
   }).join('');
 }
@@ -352,18 +352,12 @@ function saveSettings() {
   closeSettings();
   toast('✓ Konfigurasi disimpan');
   if (scriptUrl) document.getElementById('syncStatus').textContent = 'URL tersimpan — klik Sync';
+  render(); // refresh href di anchor tombol aksi
 }
 
-function handleDocBtn(btn) {
-  var code = btn.getAttribute('data-code');
-  var name = decodeURIComponent(btn.getAttribute('data-name') || '');
-  openFormForDoc(code, name);
-}
-
-function openFormForDoc(code, name) {
+function buildFormUrl(code, name) {
   var base;
   if (formUrl) {
-    // Pakai URL apa adanya — user isi URL lengkap termasuk nama file
     base = formUrl.split('?')[0];
   } else {
     var p = window.location.href;
@@ -371,7 +365,7 @@ function openFormForDoc(code, name) {
   }
   var params = new URLSearchParams({ doc: code, name: name });
   if (scriptUrl) params.set('script', scriptUrl);
-  window.open(base + '?' + params.toString(), '_blank');
+  return base + '?' + params.toString();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
