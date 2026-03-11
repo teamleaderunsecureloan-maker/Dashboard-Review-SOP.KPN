@@ -139,6 +139,19 @@ button.action-btn.primary:hover{background:var(--navy);border-color:var(--navy);
 #toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:white;padding:12px 20px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;z-index:1000;pointer-events:none;}
 #toast.show{opacity:1;transform:translateY(0);}
 .no-data{text-align:center;padding:40px;color:var(--mgray);font-size:13px;}
+.row-main{cursor:pointer;}
+.row-main:hover td{background:#F0F4FF!important;}
+.row-expand{display:none;background:#F8FAFF;}
+.row-expand.open{display:table-row;}
+.expand-arrow{font-size:11px;color:var(--mgray);transition:transform .2s;display:inline-block;}
+.expand-arrow.open{transform:rotate(90deg);}
+.gap-detail-grid{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;}
+.gdg-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.gdg-p{background:#DBEAFE;color:#1E40AF;}
+.gdg-s{background:#FEF3C7;color:#92400E;}
+.gdg-m{background:#FCE7F3;color:#9D174D;}
+.gdg-i{background:#D1FAE5;color:#065F46;}
+.gdg-none{color:var(--mgray);font-size:12px;padding:4px 0;}
 </style>
 </head>
 <body>
@@ -212,7 +225,7 @@ button.action-btn.primary:hover{background:var(--navy);border-color:var(--navy);
 
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Kode</th><th>Nama Dokumen</th><th>Tipe</th><th>Reviewer</th><th>Status</th><th>Aspek</th><th>Gap</th><th>Progress</th><th>Aksi</th></tr></thead>
+      <thead><tr><th>Kode</th><th>Nama Dokumen</th><th>Tipe</th><th>Reviewer</th><th>Status</th><th>Aspek</th><th>Gap</th><th>Progress</th><th style="width:28px"></th></tr></thead>
       <tbody id="docTableBody"></tbody>
     </table>
   </div>
@@ -298,16 +311,7 @@ var AV_COLORS=['#2E5FA3','#1A6B5E','#92400E','#6B21A8','#991B1B','#0369A1'];
 function avatarColor(n){var h=0;for(var i=0;i<(n||'').length;i++)h=(h*31+n.charCodeAt(i))%AV_COLORS.length;return AV_COLORS[Math.abs(h)];}
 function initials(n){if(!n||n==='—')return '?';return n.trim().split(/\s+/).map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);}
 
-// ── BUILD FORM URL ────────────────────────────────────────────────────────────
-// Fungsi ini dipanggil saat render — menghasilkan href langsung di tag <a>
-// Sehingga browser memperlakukan ini sebagai navigasi biasa, bukan popup
-function buildFormUrl(code, name){
-  var base = formUrl ? formUrl.split('?')[0]
-           : (function(){ var p=window.location.href; return p.substring(0,p.lastIndexOf('/')+1)+'index.html'; })();
-  var q = 'doc='+encodeURIComponent(code)+'&name='+encodeURIComponent(name);
-  if(scriptUrl) q += '&script='+encodeURIComponent(scriptUrl);
-  return base+'?'+q;
-}
+// buildFormUrl removed — aksi diganti expand row
 
 // ── RENDER TABLE ─────────────────────────────────────────────────────────────
 var BADGE={
@@ -323,22 +327,43 @@ var ASPEK_TAG={
   I:'<span class="aspek-tag aspek-i">Infrastruktur</span>',
 };
 
+function gapPills(d){
+  var pills='';
+  if(d.gapP) pills+='<span class="gdg-pill gdg-p">Produk: '+d.gapP+'</span>';
+  if(d.gapS) pills+='<span class="gdg-pill gdg-s">Sistem: '+d.gapS+'</span>';
+  if(d.gapM_asp) pills+='<span class="gdg-pill gdg-m">SDM: '+d.gapM_asp+'</span>';
+  if(d.gapI) pills+='<span class="gdg-pill gdg-i">Infra: '+d.gapI+'</span>';
+  return pills||'<span class="gdg-none">Belum ada data gap per aspek</span>';
+}
+
+function toggleRow(id){
+  var exp=document.getElementById('exp-'+id);
+  var arr=document.getElementById('arr-'+id);
+  if(!exp) return;
+  var isOpen=exp.classList.contains('open');
+  exp.classList.toggle('open',!isOpen);
+  arr.classList.toggle('open',!isOpen);
+}
+
 function renderTable(data){
   var tbody=document.getElementById('docTableBody');
   var rows=currentFilter==='semua'?data:data.filter(function(d){return d.status===currentFilter;});
   if(!rows.length){tbody.innerHTML='<tr><td colspan="9" class="no-data">Tidak ada dokumen.</td></tr>';return;}
-  tbody.innerHTML=rows.map(function(d){
+  var html='';
+  rows.forEach(function(d,i){
+    var id='row'+i;
     var aspekHtml=(d.aspek||[]).map(function(a){return ASPEK_TAG[a]||'';}).join('');
     var tGap=(d.gapH||0)+(d.gapM||0);
-    var gapHtml=tGap===0?'<span class="gap-count gap-none">—</span>'
+    var hasGap=(d.status==='selesai'||d.status==='proses');
+    var gapHtml=!hasGap?'<span class="gap-count gap-none">—</span>'
+      :tGap===0?'<span class="gap-count gap-none">0</span>'
       :'<span class="gap-count gap-high">'+(d.gapH||0)+' 🔴</span>&nbsp;<span class="gap-count gap-medium">'+(d.gapM||0)+' 🟡</span>';
     var bc=d.progress===100?'var(--teal)':d.progress>0?'var(--amber)':'var(--border)';
-    var isPrimary=d.status==='belum';
-    // ── KUNCI: gunakan <a href> bukan <button onclick> ──────────────────────
-    // Browser TIDAK pernah blok <a target="_blank"> karena itu navigasi native
-    var formHref=buildFormUrl(d.code, d.name||'');
-    var aksi='<a class="action-btn'+(isPrimary?' primary':'')+'" href="'+formHref+'" target="_blank" rel="noopener">'+(isPrimary?'Tugaskan':'Update')+'</a>';
-    return '<tr>'
+    var canExpand=(d.status==='selesai'||d.status==='proses');
+    var arrowHtml=canExpand?'<span class="expand-arrow" id="arr-'+id+'">▶</span>':'';
+    var clickAttr=canExpand?'onclick="toggleRow(\'' + id + '\'")'  :'';
+    // baris utama
+    html+='<tr class="row-main" '+clickAttr+'>'
       +'<td><span class="doc-code">'+d.code+'</span></td>'
       +'<td><div class="doc-name">'+d.name+'</div></td>'
       +'<td><div class="doc-type">'+d.type+'</div></td>'
@@ -350,9 +375,16 @@ function renderTable(data){
         +'<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:'+(d.progress||0)+'%;background:'+bc+'"></div></div>'
         +'<span style="font-size:11px;font-family:var(--mono);color:var(--mgray)">'+(d.progress||0)+'%</span>'
       +'</div></td>'
-      +'<td>'+aksi+'</td>'
+      +'<td style="text-align:center">'+arrowHtml+'</td>'
       +'</tr>';
-  }).join('');
+    // baris expand (detail gap per aspek)
+    if(canExpand){
+      html+='<tr class="row-expand" id="exp-'+id+'">'
+        +'<td colspan="9"><div class="gap-detail-grid">'+gapPills(d)+'</div></td>'
+        +'</tr>';
+    }
+  });
+  tbody.innerHTML=html;
 }
 
 // ── RENDER STATS ─────────────────────────────────────────────────────────────
